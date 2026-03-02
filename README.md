@@ -1,83 +1,251 @@
-# Black Box Optimization Capstone Project
+# Black-Box Optimization Capstone Project
 
-## 1. Project Overview
+## Table of Contents
 
-The Black Box Optimization (BBO) Capstone Project focuses on optimizing complex mathematical functions through the application of Bayesian optimization techniques. The primary purpose of this project is to develop robust machine learning models that can effectively explore input spaces to identify optimal solutions, maximizing or minimizing specific target functions.
+- [Project Overview](#project-overview)
+- [Inputs and Outputs](#inputs-and-outputs)
+- [Challenge Objectives](#challenge-objectives)
+- [Technical Approach](#technical-approach)
+- [Results Summary](#results-summary)
+- [Repository Structure](#repository-structure)
+- [Documentation](#documentation)
+- [Setup and Reproduction](#setup-and-reproduction)
 
-The overall goal of the BBO capstone project is to create an effective optimization framework that balances exploration and exploitation, enabling the discovery of global maxima with minimal computational resources. This project holds significant relevance in real-world machine learning as it addresses complex optimization problems commonly encountered in various domains such as engineering design, finance optimization, and hyperparameter tuning in machine learning models. The high-level idea is to systematically evaluate and refine approaches to maximize function outputs in uncertain and multidimensional spaces.
+---
 
+## Project Overview
 
-## 2. Inputs and Outputs
+### What is this project?
 
-The model receives and returns the following:
+This repository contains my complete solution to a Black-Box Optimization (BBO) capstone project, developed over ten iterative rounds as part of a machine learning and artificial intelligence module. The challenge involves finding the inputs that maximize eight unknown functions of varying dimensionality, ranging from 2 to 8 dimensions, with no access to the functions' analytical forms, gradients, or structural properties. The only interaction with the functions is through an oracle that returns exact evaluations at queried points.
 
-- **Inputs**:
-  - **Query Format**: A structured dictionary containing the function index and input parameters in a list format.
-  - **Dimensions**: The input space can consist of multiple dimensions, ranging from 2 to 8, depending on the specific function being analyzed.
-  - **Constraints**: The input parameters are restricted to specific ranges, and after standardization these are the unit hypercubes.
+### Why is this relevant?
 
-- **Expected Output**:
-  - **Response Value**: The predicted maximum value (or minimum, depending on the optimization goal) of the function based on the given input parameters.
-  - **Performance Signal**: An uncertainty measure associated with the prediction, reflecting the confidence of the model in its output.
+Black-box optimization is fundamental to many real-world machine learning applications where the objective function is expensive, opaque, or both. Common examples include:
 
-Example input format:
-```python
-{
-    function_index: 2,
-    parameters: [0.5, 0.7, 0.2]
-}
+- **Hyperparameter tuning** — finding optimal learning rates, regularization strengths, and architecture choices for neural networks without a closed-form relationship between hyperparameters and model performance
+- **Drug discovery** — optimizing molecular properties where each evaluation requires costly laboratory experiments or simulations
+- **Materials science** — identifying compositions or process parameters that yield desired material properties
+- **Engineering design** — optimizing aerodynamic shapes, circuit layouts, or structural configurations where each evaluation requires expensive simulation
+
+In all these settings, the core challenge is the same: how to make intelligent decisions about where to query next when evaluations are limited and the landscape is unknown. This project provides a controlled environment to develop and test strategies for exactly this problem.
+
+### Career relevance
+
+This project develops skills that are directly transferable to data science and ML engineering roles, including surrogate modeling, uncertainty quantification, sequential decision-making under uncertainty, and the practical engineering of computational pipelines. The iterative nature of the challenge, where each round's strategy must be informed by previous results, mirrors the reality of applied ML projects where models are continuously refined based on new data and feedback. The experience of working with extremely sparse data in high-dimensional spaces is particularly relevant, as many real-world optimization problems share this fundamental constraint.
+
+---
+
+## Inputs and Outputs
+
+### Input Format
+
+Each query consists of a continuous-valued vector whose dimensionality depends on the function being optimized:
+
+```
+Function 1: x = [x1, x2]                                    # 2 dimensions
+Function 2: x = [x1, x2]                                    # 2 dimensions
+Function 3: x = [x1, x2, x3]                                # 3 dimensions
+Function 4: x = [x1, x2, x3, x4]                            # 4 dimensions
+Function 5: x = [x1, x2, x3, x4]                            # 4 dimensions
+Function 6: x = [x1, x2, x3, x4, x5]                        # 5 dimensions
+Function 7: x = [x1, x2, x3, x4, x5, x6]                   # 6 dimensions
+Function 8: x = [x1, x2, x3, x4, x5, x6, x7, x8]          # 8 dimensions
 ```
 
-Expected output format:
-```python
-{
-    predicted_value: 0.85,
-    uncertainty: 0.02
-}
+All input dimensions are bounded within known continuous ranges. One query per function is permitted per round, for a total of ten rounds.
+
+### Output Format
+
+The oracle returns a single scalar value for each query:
+
+```
+y = f(x)    # continuous real-valued output
 ```
 
-## 3. Challenge Objectives
+### Example
 
-Within the BBO Capstone Project, the primary objective is to maximize the selected functions by effectively exploring the input space and identifying their maxima using a blend of Machine Learning (ML) methods.
+```python
+# Query for Function 3 (3 dimensions)
+query = [0.45, 0.72, 0.31]
 
-The goal is to maximize the function outputs while adhering to the following constraints and limitations:
-- **Number of Queries**: The optimization process is typically limited to a few tens of queries, which specifies the number of evaluations of the functions.
-- **Response Delay**: Given the extensive computational tasks involved, responses may take varying amounts of time, depending on the dimensionality of the functions being evaluated.
-- **Unknown Function Structure**: The functions can exhibit complex behaviors and non-linear relationships, which complicates modeling and optimization efforts. It may lead to slow convergence at times, challenging the efficiency of the optimization process.
+# Oracle response
+response = 2.847
+```
 
+### Data Storage
 
-## 4. Technical Approach
+Query-response pairs are stored as Python dictionaries mapping input tuples to output values and exported as CSV files for persistence. Intermediate model evaluations, including GP predictions across grids, are stored as separate CSV files.
 
-Throughout the course of my BBO capstone project, I have developed a systematic approach to optimizing complex functions, which evolved across three query submissions. This section serves as a living record of the strategies and methodologies employed, and it will be updated as my approach continues to evolve.
+---
 
-### Query Submissions and Strategies
+## Challenge Objectives
 
-1. **Round One: Initial Exploration and Gaussian Processes**
-   - In the initial submission, I utilized Gaussian Processes (GP) for function approximation. This approach allowed me to predict the expected value and uncertainty associated with function outputs based on a limited dataset provided for each function.
-   - I created a uniform grid across the input space with varying subdivisions for different functions, allowing thorough exploration of the domain. This brute-force method enabled me to evaluate many points and store results efficiently.
-   - I applied the Upper Confidence Bound (UCB) acquisition function where the exploration-exploitation balance was initially set to balance exploitation and exploration, in a completely agnostic way.
+### Primary Goal
 
-2. **Round Two: Increased Exploration with Modified UCB**
-   - Based on the findings from the first round, I shifted my focus toward exploration in the second submission. After observing stagnation in identifying new maxima, I adjusted the beta parameter within the UCB function to enhance exploration.
-   - The beta value was heuristically set to a higher multiplier (around 4) to actively encourage the model to explore more diverse regions of the input space, particularly where new maxima might remain undiscovered.
+**Maximize** each of the eight unknown functions by selecting optimal query points across ten rounds of submission.
 
-3. **Round Three: SVM Integration and Remote Batch Computation**
-   - In this round, I integrated Support Vector Machines (SVM) into my methodology. Although SVM is typically used for classification, I exploited it to define promising regions of the input space. Using SVM, I categorized outputs into quartiles to focus exploration on regions likely to yield higher values.
-   - Furthermore, I utilized remote batch computation to improve efficiency, significantly decreasing computation times when executing extensive grid searches. This move was particularly beneficial for high-dimensional functions.
-   - My exploration strategy was refined using insights from the SVM model, which helped guide the selection of query points, allowing for a more thoughtful balance between exploration and exploitation (determined by requiring both by the convergence of the UCB decision for increasing beta parameter and agreement with the SVM decision).
+### Constraints and Limitations
 
-### Machine Learning Methods and Heuristics
+| Constraint | Detail |
+|-----------|--------|
+| **Query budget** | One query per function per round, ten rounds total |
+| **Function access** | Black-box only — no analytical form, derivatives, or structural information |
+| **Initial data** | Approximately 10 provided points per function |
+| **Total data** | ~20 points per function by final round |
+| **Dimensionality** | Ranges from 2D to 8D across the eight functions |
+| **Domain bounds** | Known continuous ranges for each input dimension |
+| **Evaluation type** | Exact (no observation noise from the oracle, though model uncertainty remains) |
 
-Throughout the project, I primarily employed the following methodologies:
-- **Gaussian Processes** for modeling unknown functions: GP was used to provide predictions and uncertainty estimates for the function outputs based on input parameters.
-- **Support Vector Machines** as a heuristic to classify promising regions of input space, directing exploration towards areas that may yield better outcomes.
-- Exploration strategies were employed using the UCB acquisition function to balance exploration and exploitation effectively, continuously refining this balance as new insights were gained.
+### Core Challenge
 
-### Balancing Exploration and Exploitation
+The fundamental difficulty is the extreme sparsity of data relative to the dimensionality of the search space. With approximately 20 points in 8 dimensions, the coverage of the input space is negligibly small. Every query must therefore be chosen to maximize the information gained while also pursuing the optimization objective — the classic exploration versus exploitation tradeoff.
 
-My approach to balancing exploration and exploitation involves a dynamic adaptation of the beta parameter in the UCB acquisition function. By using insights from SVM's categorization, I strategically increase the beta value to promote exploration in potentially fruitful regions while maintaining an awareness of previously identified maxima.
+---
 
-What makes my approach unique is this integration of diverse methods - leveraging both probabilistic modeling (GP) and classification techniques (SVM). This combination allows for a nuanced exploration strategy that can adapt and respond to the inherent complexities present in the functions being optimized.
+## Technical Approach
 
-As I continue to engage with this project, I will refine and expand upon these strategies to enhance performance and meet the challenging objectives set forth.
+This section documents the evolution of my optimization strategy across ten rounds. It serves as a living record of methodological decisions, their outcomes, and the reasoning that guided each transition.
 
+### Phase 1: Baseline Establishment (Rounds 1–2)
+
+**Core method:** Gaussian Process regression with UCB acquisition function
+
+The initial approach used a Gaussian Process as the surrogate model, chosen for its ability to provide both predicted values and uncertainty estimates at unsampled points. The GP was evaluated over uniform grids spanning the input domain, with subdivisions ranging from 5 to 15 per dimension depending on the function's dimensionality.
+
+```
+Grid sizes ranged from:
+  - 16^2  =        256 points (2D functions)
+  - 16^5  =  1,048,576 points (5D function)
+  - 11^6  =  1,771,561 points (6D function)
+  - 8^8   = 16,777,216 points (8D function)
+```
+
+The Upper Confidence Bound acquisition function was used to select query points, with beta initially set as the ratio of mean predicted values to standard deviations. In round 2, beta was increased to approximately 4 after observing that no new maxima were being discovered, shifting the balance toward exploration.
+
+**Computation:** Parallel evaluation across 12–24 CPU cores, producing approximately 6.5 GB of intermediate CSV files across 70 files.
+
+**Key insight:** Function 1 was identified as anomalous, having essentially one non-negligible output value. It was handled manually rather than through the standard GP pipeline.
+
+### Phase 2: Model Diversification (Rounds 3–6)
+
+**Core methods:** GP-SVM hybrid, Bayesian Neural Network, gradient analysis
+
+**Round 3 — SVM for region identification:**
+The optimization problem was recast as a classification task by labeling outputs above the upper quartile as positive. An SVM with C=1 was trained to identify the boundary of promising regions. The SVM decision boundary then informed where to push UCB exploration, creating a hybrid strategy where the SVM provided strategic direction and the GP provided precise predictions.
+
+**Rounds 4–6 — Bayesian Neural Network:**
+A BNN was implemented from scratch in PyTorch with three Bayesian linear layers (32→16→8 units). Instead of fixed weights, distributions were learned, with the loss function combining negative log-likelihood and KL divergence regularization. Multiple forward passes with different weight samples provided mean predictions and uncertainty estimates.
+
+Critically, gradient computation was implemented to assess the sensitivity of outputs to each input dimension. This enabled both feature importance ranking through gradient magnitude and gradient ascent from best known points as a directed search strategy.
+
+**Visualization:** 3D plots of pairwise dimension slices revealed four distinct surface types across the eight functions:
+
+| Type | Description | Functions |
+|------|-------------|-----------|
+| Near-linear | Output resembles a plane | Some low-dimensional |
+| Single peak | Clear unimodal maximum | Several functions |
+| Mixed extrema | Multiple peaks and valleys | Mid-dimensional |
+| Oscillatory | Periodic-like variations | Most challenging |
+
+### Phase 3: Systematic Refinement (Rounds 7–8)
+
+**Core method:** Hyperparameter tuning with cross-validation
+
+Round 7 represented the most impactful methodological advance. A systematic grid search tested 48 configurations:
+
+- **8 kernels:** RBF, Matérn (ν=1.5, ν=2.5), Rational Quadratic, composite kernels, and ARD variants
+- **6 alpha values:** [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]
+- **Evaluation:** 3-fold cross-validation
+
+**Key findings:**
+
+| Finding | Impact |
+|---------|--------|
+| Matérn 5/2 best kernel for half the functions | Function-specific model selection |
+| ARD improved RMSE by 40–60% on high-dimensional functions | Feature relevance quantification |
+| Optimal alpha between 1e-5 and 1e-4 | Proper regularization calibration |
+| Higher dimensions require larger alpha | Dimension-aware regularization |
+
+**Round 8 — LLM-assisted code generation:**
+The Anthropic API was used with Claude Opus to generate complete Bayesian optimization implementations. Experiments with temperature (default vs 1.0) and top-p (default vs 0.9) sampling revealed that T=1.0 produced the most complete and reliable code, while higher top-p introduced creative but structurally problematic choices.
+
+### Phase 4: Synthesis (Rounds 9–10)
+
+**Core method:** Unified pipeline combining best elements from all phases
+
+The final strategy integrated the strongest findings into a single pipeline:
+
+1. **Fit tuned GP** using function-specific kernel and alpha from round 7
+2. **Extract ARD length scales** to identify irrelevant dimensions
+3. **Fix irrelevant dimensions** at current best values, reducing effective search space
+4. **Gradient ascent** from current best point in reduced space
+5. **UCB validation** to ensure the candidate balances predicted value with uncertainty
+
+```python
+# Simplified final pipeline pseudocode
+for each function:
+    gp = fit_tuned_gp(data, best_kernel, best_alpha, ARD=True)
+    important_dims = identify_relevant_dimensions(gp.length_scales)
+    x_candidate = gradient_ascent(gp, x_best, dims=important_dims)
+    x_final = ucb_validate(gp, x_candidate, beta=3)
+    submit(x_final)
+```
+
+### Exploration vs. Exploitation Balance
+
+The balance between exploration and exploitation evolved deliberately across the project:
+
+- **Rounds 1–6:** Heavily exploration-focused, driven by the observation that promising regions had not yet been identified
+- **Round 7:** Balanced — systematic tuning improved both the model's predictive accuracy and its ability to guide exploitation
+- **Rounds 8–10:** Shifted toward exploitation for well-characterized functions while maintaining exploration for challenging high-dimensional ones
+
+The transition was informed by function-specific landscape understanding: near-linear surfaces warranted aggressive exploitation, while oscillatory or complex surfaces required continued exploration.
+
+### What Makes This Approach Unique
+
+The approach is distinctive in three ways. First, the deliberate progression from simple to sophisticated methods, with honest evaluation of which innovations actually improved performance. Second, the creative combination of models not typically used together in BBO, particularly the SVM-GP hybrid for region identification. Third, the use of ARD length scales not just for model improvement but as a strategic tool for dimensionality reduction, which transformed the tractability of higher-dimensional functions.
+
+---
+
+## Results Summary
+
+| Function | Dims | Best Strategy | Key Challenge |
+|----------|------|--------------|---------------|
+| 1 | 2 | Manual inspection | Anomalous data distribution |
+| 2 | 2 | Tuned GP + exploitation | Straightforward landscape |
+| 3 | 3 | Tuned GP + gradient ascent | Moderate complexity |
+| 4 | 4 | Tuned GP + ARD | Increasing dimensionality |
+| 5 | 4 | Tuned GP + exploration | Oscillatory behavior |
+| 6 | 5 | Tuned GP + ARD + gradient | Balancing exploration and exploitation |
+| 7 | 6 | ARD dimension reduction + gradient | High dimensionality, slow convergence |
+| 8 | 8 | ARD dimension reduction + gradient | Extreme sparsity, 19 points in 8D |
+
+Detailed performance metrics are available in the [Model Card](docs/model_card.md).
+
+---
+
+## Documentation
+
+- **[Datasheet](docs/datasheet.md)** — Complete documentation of the query dataset including motivation, composition, collection process, preprocessing, and distribution details
+- **[Model Card](docs/model_card.md)** — Comprehensive description of the optimization approach including intended use, technical details, performance summary, assumptions, limitations, and ethical considerations
+
+---
+
+## Setup and Reproduction
+
+### Requirements
+
+```
+python >= 3.9
+scikit-learn >= 1.0
+pytorch >= 1.12
+numpy >= 1.21
+pandas >= 1.4
+matplotlib >= 3.5
+joblib >= 1.1
+```
+
+---
+
+*This project is being carried out as part of an EdTech ML/AI module. The iterative development process across ten rounds is documented in full to support transparency, reproducibility, and learning.*
