@@ -7,7 +7,6 @@
 - [Challenge Objectives](#challenge-objectives)
 - [Technical Approach](#technical-approach)
 - [Results Summary](#results-summary)
-- [Repository Structure](#repository-structure)
 - [Documentation](#documentation)
 - [Setup and Reproduction](#setup-and-reproduction)
 
